@@ -1,16 +1,15 @@
 package com.example.HRMS.DTO;
 
-import lombok.*;
-import org.springframework.stereotype.Component;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Component
-@Setter
-@Getter
 public class LoginResponse {
-    String Email;
-    String token;
+    private String email;
+    private String token;
 }

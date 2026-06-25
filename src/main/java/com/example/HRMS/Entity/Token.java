@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "Token")
+@Table(name = "token")
 public class Token {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -21,7 +21,7 @@ public class Token {
     @Column(unique = true)
     private String token;
 
-    @Enumerated
+    @Enumerated(EnumType.STRING)
     private TokenType tokenType = TokenType.Bearer;
 
     public boolean revoked;
@@ -29,6 +29,6 @@ public class Token {
     public boolean expired;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "Emp_id")
+    @JoinColumn(name = "emp_id")
     private Employee employee;
 }

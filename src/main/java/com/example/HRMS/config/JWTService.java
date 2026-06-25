@@ -1,8 +1,8 @@
 package com.example.HRMS.config;
 
-import com.example.HRMS.DTO.LoginRequest;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
@@ -13,11 +13,17 @@ import java.util.function.Function;
 @Service
 public class JWTService {
 
-    public String extractEmail(String jwt){
+    @Value("${jwt.secret}")
+    private String secretKey;
+
+    @Value("${jwt.expiration:1800}")
+    private long expiration;
+
+    public String extractEmail(String jwt) {
         return extractClaim(jwt, Claims::getSubject);
     }
 
-    public Claims extractAllClaims(String jwt){
+    public Claims extractAllClaims(String jwt) {
         return Jwts.parser()
                 .verifyWith(getSignKey())
                 .build()
@@ -25,34 +31,35 @@ public class JWTService {
                 .getPayload();
     }
 
-    public SecretKey getSignKey(){
-        byte[] keyBytes = "cL1LG<T1g;[s'Ah,+4yC1,I_PAV'``%k:E-d1{JufpHmD_&rz!0xgq{~M_(Zp".getBytes();
+    public SecretKey getSignKey() {
+        byte[] keyBytes = secretKey.getBytes();
         return io.jsonwebtoken.security.Keys.hmacShaKeyFor(keyBytes);
     }
 
-    public <T> T extractClaim(String jwt, Function<Claims,T> claimsResolver){
+    public <T> T extractClaim(String jwt, Function<Claims, T> claimsResolver) {
         final Claims claims = extractAllClaims(jwt);
         return claimsResolver.apply(claims);
     }
 
-    public String generateToken(
-            LoginRequest loginRequest){
+    public String generateToken(UserDetails userDetails) {
         return Jwts.builder()
-                .subject(loginRequest.getEmail())
+                .id(java.util.UUID.randomUUID().toString())
+                .subject(userDetails.getUsername())
                 .signWith(getSignKey())
                 .issuedAt(Date.from(java.time.Instant.now()))
-                .expiration(Date.from(java.time.Instant.now().plusSeconds(1800) ))
+                .expiration(Date.from(java.time.Instant.now().plusSeconds(expiration)))
                 .compact();
     }
 
-    public boolean isValidateToken(String jwt,UserDetails userDetails){
+    /**
+     * Returns true if the token signature is valid and not expired.
+     */
+    public boolean isValidateToken(String jwt, UserDetails userDetails) {
         final String email = extractEmail(jwt);
-        return (email.equals(userDetails.getUsername()) && isTokenExpired(jwt));
+        return email.equals(userDetails.getUsername()) && !isTokenExpired(jwt);
     }
 
     private boolean isTokenExpired(String jwt) {
-        return extractClaim(jwt,Claims::getExpiration).before(new Date());
+        return extractClaim(jwt, Claims::getExpiration).before(new Date());
     }
-
-    
 }

@@ -7,13 +7,15 @@ import org.springframework.data.jpa.repository.Query;
 import java.util.List;
 import java.util.Optional;
 
-public interface TokenRepo extends JpaRepository<Token,Long> {
-    @Query(value = """
+public interface TokenRepo extends JpaRepository<Token, Long> {
+
+    @Query("""
             SELECT t FROM Token t
             INNER JOIN t.employee e
             WHERE e.id = :id
             AND (t.expired = false OR t.revoked = false)
             """)
-    List<Token> findAvailableTokenbyUser(Integer id);
+    List<Token> findAvailableTokenbyUser(Long id);
+
     Optional<Token> findByToken(String token);
 }

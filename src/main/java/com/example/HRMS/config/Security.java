@@ -7,7 +7,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -22,12 +21,8 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class Security extends OncePerRequestFilter {
 
-    @Autowired
     private final UserDetailsService userDetailsService;
-    @Autowired
     private final JWTService jwtService;
-
-    @Autowired
     private final TokenRepo tokenRepo;
 
     @Override
@@ -36,32 +31,38 @@ public class Security extends OncePerRequestFilter {
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain)
             throws ServletException, IOException {
-        if (request.getServletPath().contains("/api/v1/auth"))
-        {
-            filterChain.doFilter(request,response);
+
+        if (request.getServletPath().contains("/api/v1/auth")) {
+            filterChain.doFilter(request, response);
             return;
         }
+
         final String header = request.getHeader("Authorization");
         if (header == null || !header.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
+
         final String jwt = header.substring(7);
-        final String Email = jwtService.extractEmail(jwt);
-        if(Email !=null && SecurityContextHolder.getContext().getAuthentication()==null) {
-            UserDetails userDetails = this.userDetailsService.loadUserByUsername(Email);
-            var isValidtoken = tokenRepo.findByToken(jwt).map(token -> jwtService.isValidateToken(jwt, userDetails)).orElse(false);
-            if (isValidtoken) {
-                UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+        final String email = jwtService.extractEmail(jwt);
+
+        if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+
+            // Check: token exists in DB, is not revoked, not expired, and signature is valid
+            boolean isValidToken = tokenRepo.findByToken(jwt)
+                    .map(token -> !token.isRevoked() && !token.isExpired()
+                            && jwtService.isValidateToken(jwt, userDetails))
+                    .orElse(false);
+
+            if (isValidToken) {
+                UsernamePasswordAuthenticationToken authToken =
+                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authToken);
             }
         }
-        try {
-            filterChain.doFilter(request, response);
-        } finally {
-            SecurityContextHolder.clearContext();
-        }
 
+        filterChain.doFilter(request, response);
     }
 }
